@@ -1,1 +1,1 @@
-# custom-payment
+# woocommerce-payment-gateway
