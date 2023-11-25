@@ -1,0 +1,6 @@
+2023-11-25 10:48:09: Processing Order: 680
+2023-11-25 10:48:14: Successfull: {"key":"tx:EG8QKPZ2PJ86JYE","value":"centrohelp.eu 18777788382","status":"Active"}
+2023-11-25 10:48:14: Cart empty.
+2023-11-25 10:49:45: Webhook received: {"statusType":2,"status":"Approved","description":"Billing descriptor","actionedById":1,"affectedContactIds":[],"transaction":{"id":680,"createdById":2,"type":"UCD","date":"2021-04-20T20:34:00.7606173+02:00","reference":234234234,"currencyCode":"USD","amount":100}}
+2023-11-25 10:49:45: Processing Webhook Order: 680
+2023-11-25 10:49:45: Status: Approved
