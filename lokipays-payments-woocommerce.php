@@ -119,7 +119,7 @@ function handle_webhook($request) {
 				break;
 
 			case 2: // 2 = Approved- The transaction was approved and processed
-				$order->update_status('completed', 'Payment Approved- The transaction was approved and processed');
+				$order->update_status('processing', 'Payment Approved- The transaction was approved and processed');
 				$order->payment_complete();
 				return new WP_REST_Response('Successfully', 200);
 				break;

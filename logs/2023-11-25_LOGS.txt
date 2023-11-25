@@ -12,3 +12,8 @@
 2023-11-25 12:18:34: Webhook received: {"statusType":2,"status":"Rejected","description":"Insufficient funds","actionedById":1,"affectedContactIds":[],"transaction":{"id":661,"createdById":2,"type":"UCD","date":"2021-04-20T20:34:00.7606173+02:00","reference":234234234,"currencyCode":"USD","amount":100}}
 2023-11-25 12:18:34: Processing Webhook Order: 661
 2023-11-25 12:18:34: Status: Rejected
+2023-11-25 12:38:36: 
+
+Processing Order: 682
+2023-11-25 12:38:39: Response received: {"key":"","value":"validation.credit_card.card_length_invalid","status":"Rejected"}
+2023-11-25 12:38:39: Failed: validation.credit_card.card_length_invalid

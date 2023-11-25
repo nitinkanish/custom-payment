@@ -416,7 +416,7 @@ class WC_Gateway_Lokipays extends WC_Payment_Gateway
 			
 			$res_body = json_decode(wp_remote_retrieve_body($response));
 
-			lokipays_log("Failed: Response Code: " . $response_code . " Error Title:" . $res_body->title);
+			lokipays_log("Failed: Response Code: " . $response_code . wp_remote_retrieve_body($response));
 
 			wc_add_notice( $res_body->title ?? "Something went wrong, Please try again.", 'error' );
 
@@ -445,7 +445,7 @@ class WC_Gateway_Lokipays extends WC_Payment_Gateway
 		}
 
 		if ($res_body->status == "Active") {
-			$order->update_status('completed', 'Payment Approved - The transaction was approved and processed');
+			$order->update_status('processing', 'Payment Approved - The transaction was approved and processed');
 			$order->payment_complete();
 		} else {
 			// Payment pending - further status will updated by webhook.
