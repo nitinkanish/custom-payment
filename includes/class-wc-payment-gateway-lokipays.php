@@ -347,7 +347,7 @@ class WC_Gateway_Lokipays extends WC_Payment_Gateway
 	{
 		$order_id = $order->get_ID();
 
-		lokipays_log("Processing Order: " . $order_id);
+		lokipays_log("\n\nProcessing Order: " . $order_id);
 
 		$total = intval($order->get_total());
 
@@ -398,13 +398,16 @@ class WC_Gateway_Lokipays extends WC_Payment_Gateway
 		if (is_wp_error($response)) {
 
 			lokipays_log("Failed: Response Error: " . $response->get_error_message());
+
+			wc_add_notice( $response->get_error_message(), 'error' );
+
 			// Handle error
-			wp_send_json([
+			return [
 				"result" => "failure",
 				"message" => $response->get_error_message(),
 				"refresh" => false,
 				"reload" => false,
-			]);
+			];
 		}
 
 		$response_code = wp_remote_retrieve_response_code($response);
@@ -415,26 +418,44 @@ class WC_Gateway_Lokipays extends WC_Payment_Gateway
 
 			lokipays_log("Failed: Response Code: " . $response_code . " Error Title:" . $res_body->title);
 
-			wp_send_json([
+			wc_add_notice( $res_body->title ?? "Something went wrong, Please try again.", 'error' );
+
+			return [
 				"result" => "failure",
 				"message" => $res_body->title ?? "Something went wrong, Please try again.",
 				"refresh" => false,
 				"reload" => false,
-			]);
+			];
 		}
 
 
 		$res_body = json_decode(wp_remote_retrieve_body($response));
 
-		lokipays_log("Successfull: " . json_encode($res_body));
+		lokipays_log("Response received: " . json_encode($res_body));
 
-		// Payment pending - further status will updated by webhook.
-		$order->update_status('pending-payment', 'Payment pending');
+		if ($res_body->status == "Rejected") {
+			lokipays_log("Failed: " . $res_body->value ?? "Something went wrong, Please try again.");
+			wc_add_notice( $res_body->value ?? "Something went wrong, Please try again.", 'error' );
+			return [
+				"result" => "failure",
+				"message" => $res_body->description ?? "Something went wrong, Please try again.",
+				"refresh" => false,
+				"reload" => false,
+			];
+		}
+
+		if ($res_body->status == "Active") {
+			$order->update_status('completed', 'Payment Approved - The transaction was approved and processed');
+			$order->payment_complete();
+		} else {
+			// Payment pending - further status will updated by webhook.
+			$order->update_status('pending-payment', 'Payment pending');
+		}
 
 		// Remove cart.
 		WC()->cart->empty_cart();
 
-		lokipays_log("Cart empty.");
+		lokipays_log("Waiting for webhook call...");
 
 		// Return thankyou redirect.
 		wp_send_json(array(

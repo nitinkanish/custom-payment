@@ -35,6 +35,7 @@ function register_lokipays_webhook_endpoint() {
     register_rest_route('lokipays/v1', '/webhook', array(
         'methods' => 'POST',
         'callback' => 'handle_webhook',
+				'permission_callback' => '__return_true',
     ));
 }
 

@@ -4,3 +4,11 @@
 2023-11-25 10:49:45: Webhook received: {"statusType":2,"status":"Approved","description":"Billing descriptor","actionedById":1,"affectedContactIds":[],"transaction":{"id":680,"createdById":2,"type":"UCD","date":"2021-04-20T20:34:00.7606173+02:00","reference":234234234,"currencyCode":"USD","amount":100}}
 2023-11-25 10:49:45: Processing Webhook Order: 680
 2023-11-25 10:49:45: Status: Approved
+2023-11-25 11:48:59: Processing Order: 681
+2023-11-25 11:49:01: Failed: Response Code: 400 Error Title:One or more validation errors occurred.
+2023-11-25 12:18:23: Webhook received: {"statusType":3,"status":"Rejected","description":"Insufficient funds","actionedById":1,"affectedContactIds":[],"transaction":{"id":661,"createdById":2,"type":"UCD","date":"2021-04-20T20:34:00.7606173+02:00","reference":234234234,"currencyCode":"USD","amount":100}}
+2023-11-25 12:18:23: Processing Webhook Order: 661
+2023-11-25 12:18:23: Status: Rejected
+2023-11-25 12:18:34: Webhook received: {"statusType":2,"status":"Rejected","description":"Insufficient funds","actionedById":1,"affectedContactIds":[],"transaction":{"id":661,"createdById":2,"type":"UCD","date":"2021-04-20T20:34:00.7606173+02:00","reference":234234234,"currencyCode":"USD","amount":100}}
+2023-11-25 12:18:34: Processing Webhook Order: 661
+2023-11-25 12:18:34: Status: Rejected
