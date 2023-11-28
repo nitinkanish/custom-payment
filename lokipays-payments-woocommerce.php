@@ -113,8 +113,8 @@ function lokipays_transaction_status()
 
 function handle_webhook($request)
 {
-	$payload = $request->get_json_params();
 	try {
+		$payload = $request->get_json_params();
 		lokipays_log('Webhook received: ' . json_encode($payload));
 
 
@@ -174,8 +174,12 @@ function handle_webhook($request)
 		}
 
 		return new WP_REST_Response('No action performed.', 200);
+	} catch (Exception $e) {
+		lokipays_log("Webhook Exception: " .$e->getMessage());
+		return new WP_REST_Response(["success" => false, "message" => $e->getMessage()], 500);
 	} catch (Error $e) {
-		lokipays_log($e->getMessage());
+		lokipays_log("Webhook Fatal Error: " . $e->getMessage());
+		return new WP_REST_Response(["success" => false, "message" => $e->getMessage()], 500);
 	}
 }
 
