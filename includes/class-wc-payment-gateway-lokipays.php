@@ -32,6 +32,9 @@ class WC_Gateway_Lokipays extends WC_Payment_Gateway
 		$this->callback_url       = $this->get_option('callback_url');
 		$this->mid       		  = $this->get_option('mid');
 		$this->instructions       = $this->get_option('instructions');
+		$this->test_mode = $this->get_option('test_mode') == "yes";
+		$this->api_endpoint = $this->test_mode ? "https://stage.lokipays.com/api" : "https://lokipays.com/api";
+		$this->api_key = $this->get_option('api_key');
 		// $this->enable_for_methods = $this->get_option( 'enable_for_methods', array() );
 		// $this->enable_for_virtual = $this->get_option( 'enable_for_virtual', 'yes' ) === 'yes';
 
@@ -70,6 +73,20 @@ class WC_Gateway_Lokipays extends WC_Payment_Gateway
 				'type'        => 'checkbox',
 				'description' => '',
 				'default'     => 'no',
+			),
+			'test_mode'            => array(
+				'title'       => __('Test Mode', 'lokipays-payments-woo'),
+				'label'       => __('Enable Test Mode', 'lokipays-payments-woo'),
+				'type'        => 'checkbox',
+				'description' => 'Test Card Details:<br>Name on card: test user<br> Credit Card: 4000003268263775<br> Expiry: Any future date<br>CVV: 123<br>',
+				'default'     => 'no',
+			),
+			'api_key'            => array(
+				'title'       => __('API Key', 'lokipays-payments-woo'),
+				'label'       => __('API Key', 'lokipays-payments-woo'),
+				'type'        => 'text',
+				'description' => '',
+				'default'     => '',
 			),
 			'title'              => array(
 				'title'       => __('Title', 'lokipays-payments-woo'),
@@ -343,8 +360,105 @@ class WC_Gateway_Lokipays extends WC_Payment_Gateway
 		}
 	}
 
+	public function getTransactionStatus($reference)
+	{
+		$url = $this->api_endpoint . '/Transaction/StatusByReference/' . $this->accountId . '/?reference=' . $reference;
+		
+		$headers = array(
+			'accept' => 'text/plain; x-api-version=1.0',
+			'x-api-key' => $this->api_key,
+			'Content-Type' => 'application/json; x-api-version=1.0',
+		);
+
+		$args = array(
+			'headers'     => $headers,
+			'timeout'     => 3601000,
+			'method'      => 'GET',
+		);
+
+		$response = wp_remote_get($url, $args);
+
+		// Check for errors
+		if (is_wp_error($response)) {
+
+			return [
+				'error' => $response->get_error_message()
+			];
+
+		}
+
+		$response_code = wp_remote_retrieve_response_code($response);
+
+		if ($response_code != 200) {
+			return [
+				'error' => 'Invalid Ressponse: Status Code: ' . $response_code
+			];
+
+		}
+
+
+		$res_body = json_decode(wp_remote_retrieve_body($response), true);
+
+		return $res_body;
+	}
+
+	private function buildErrorMessage($errorString)
+	{
+		// consumer.first name
+		// consumer.last name
+		// validation.credit_card.card_length_invalid
+		// validation.credit_card.card_checksum_invalid
+		// Credit card expiration month is invalid
+		// Credit card expiration year is invalid
+		// Credit card secure code is invalid
+		$errors = [];
+
+		if (str_contains($errorString, "consumer.first name")) {
+			$errors['first_name'] = "First name is invalid";
+		}
+
+		if (str_contains($errorString, "consumer.last name")) {
+			$errors['last_name'] = "Last name is invalid";
+		}
+
+		// with wrong length
+		if (str_contains($errorString, "validation.credit_card.card_length_invalid")) {
+			$errors['card'] = "Incorrect Card Details";
+		}
+		if (str_contains($errorString, "validation.credit_card.card_length_invalid,,Credit card expiration month is invalid")) {
+			$errors['card'] = "Incorrect Card Expiration, please retry";
+		}
+		if (str_contains($errorString, "validation.credit_card.card_length_invalid,,Credit card expiration year is invalid")) {
+			$errors['card'] = "Incorrect Expiration Year, please retry";
+		}
+
+		// with wrong credit card number
+		if (str_contains($errorString, "validation.credit_card.card_checksum_invalid")) {
+			$errors['card'] = "Incorrect Card Details, please retry";
+		}
+		if (str_contains($errorString, "validation.credit_card.card_checksum_invalid,Credit card expiration month is invalid")) {
+			$errors['card'] = "Incorrect Card Expiration, please retry";
+		}
+		if (str_contains($errorString, "validation.credit_card.card_checksum_invalid,Credit card expiration year is invalid")) {
+			$errors['card'] = "Incorrect Expiration Year, please retry";
+		}
+		if (str_contains($errorString, "Credit card expiration year is invalid")) {
+			$errors['card'] = "Incorrect Expiration Year, please retry";
+		}
+		if (str_contains($errorString, "Credit card expiration month is invalid")) {
+			$errors['card'] = "Incorrect Expiration Month, please retry";
+		}
+
+		if (count($errors) == 0) {
+			$errors['general'] = $errorString;
+		}
+
+		return $errors;
+	}
+
 	private function lokipays_payment_processing($order)
 	{
+
 		$order_id = $order->get_ID();
 
 		lokipays_log("\n\nProcessing Order: " . $order_id);
@@ -358,22 +472,23 @@ class WC_Gateway_Lokipays extends WC_Payment_Gateway
 		// Convert year to 2 digits, if user provided year in 4 digits.
 		if (strlen($year) == 4) {
 			$year = substr($year, -2);
-		} 
+		}
 
-		$url = LOKIPAY_ENDPOINT . '/Transaction/CardDeposit';
+		$url = $this->api_endpoint . '/Transaction/CardDeposit';
 
 		$headers = array(
 			'accept' => 'text/plain; x-api-version=1.0',
-			'x-api-key' => LOKIPAY_APIKEY,
+			'x-api-key' => $this->api_key,
 			'Content-Type' => 'application/json; x-api-version=1.0',
 		);
+		
 
 		$body = json_encode([
 			"description" => "Payment for Order: " . $order_id,
 			"reference" => (string)$order_id,
 			"amount" => $total,
 			"accountId" => $this->accountId,
-			"customer" => (string)$order->get_user_id(),
+			"customer" => $order->get_billing_email(),
 			"creditCard" => array(
 				"name" => $name_on_card,
 				"number" => $number_on_card,
@@ -384,9 +499,12 @@ class WC_Gateway_Lokipays extends WC_Payment_Gateway
 			"callbackUrl" => $this->callback_url,
 			"mid" => $this->mid,
 		]);
-		
+
+		lokipays_log("Request payload: " . $body);
+		die;
 		$args = array(
 			'headers'     => $headers,
+			'timeout'     => 3601000,
 			'body'        => $body,
 			'method'      => 'POST',
 			'data_format' => 'body',
@@ -399,7 +517,11 @@ class WC_Gateway_Lokipays extends WC_Payment_Gateway
 
 			lokipays_log("Failed: Response Error: " . $response->get_error_message());
 
-			wc_add_notice( $response->get_error_message(), 'error' );
+			if (str_contains($response->get_error_message(), "cURL error 28: Operation timed out")) {
+				wc_add_notice("There is some unusual delay in response, please retry after sometime.", 'error');
+			} else {
+				wc_add_notice($response->get_error_message(), 'error');
+			}
 
 			// Handle error
 			return [
@@ -413,12 +535,12 @@ class WC_Gateway_Lokipays extends WC_Payment_Gateway
 		$response_code = wp_remote_retrieve_response_code($response);
 
 		if ($response_code != 200) {
-			
+
 			$res_body = json_decode(wp_remote_retrieve_body($response));
 
 			lokipays_log("Failed: Response Code: " . $response_code . wp_remote_retrieve_body($response));
 
-			wc_add_notice( $res_body->title ?? "Something went wrong, Please try again.", 'error' );
+			wc_add_notice($res_body->title ?? "Something went wrong, Please try again.", 'error');
 
 			return [
 				"result" => "failure",
@@ -435,7 +557,12 @@ class WC_Gateway_Lokipays extends WC_Payment_Gateway
 
 		if ($res_body->status == "Rejected") {
 			lokipays_log("Failed: " . $res_body->value ?? "Something went wrong, Please try again.");
-			wc_add_notice( $res_body->value ?? "Something went wrong, Please try again.", 'error' );
+
+			$error_messages = $this->buildErrorMessage($res_body->value);
+			$error_messages = implode("<br>", $error_messages);
+
+			wc_add_notice($error_messages ?? "Something went wrong, Please try again.", 'error');
+
 			return [
 				"result" => "failure",
 				"message" => $res_body->description ?? "Something went wrong, Please try again.",
@@ -446,6 +573,8 @@ class WC_Gateway_Lokipays extends WC_Payment_Gateway
 
 		if ($res_body->status == "Active") {
 			$order->update_status('processing', 'Payment Approved - The transaction was approved and processed');
+			$lokipays_transaction_id = str_replace("tx:", "", $res_body->key);
+			update_post_meta($order->get_ID(), "_transaction_id", $lokipays_transaction_id);
 			$order->payment_complete();
 		} else {
 			// Payment pending - further status will updated by webhook.
@@ -468,7 +597,7 @@ class WC_Gateway_Lokipays extends WC_Payment_Gateway
 		// 		'woocommerce_lokipays_process_payment_order_status', 
 		// 		$order->has_downloadable_item() ? 'wc-invoiced' : 'processing', $order
 		// 	), 
-			
+
 		// 	__('Payments pending.', 'lokipays-payments-woo')
 		// );
 
