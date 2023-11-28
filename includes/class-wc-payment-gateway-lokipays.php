@@ -501,7 +501,7 @@ class WC_Gateway_Lokipays extends WC_Payment_Gateway
 		]);
 
 		lokipays_log("Request payload: " . $body);
-		die;
+		
 		$args = array(
 			'headers'     => $headers,
 			'timeout'     => 3601000,
