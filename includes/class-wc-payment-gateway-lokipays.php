@@ -13,6 +13,14 @@
 class WC_Gateway_Lokipays extends WC_Payment_Gateway
 {
 
+	public $accountId;
+	public $callback_url;
+	public $mid;
+	public $instructions;
+	public $test_mode;
+	public $api_key;
+	public $api_endpoint;
+
 	/**
 	 * Constructor for the gateway.
 	 */
@@ -35,6 +43,20 @@ class WC_Gateway_Lokipays extends WC_Payment_Gateway
 		$this->test_mode = $this->get_option('test_mode') == "yes";
 		$this->api_endpoint = $this->test_mode ? "https://stage.lokipays.com/api" : "https://lokipays.com/api";
 		$this->api_key = $this->get_option('api_key');
+
+		$this->has_fields         = false;
+		$this->supports           = array(
+			'products',
+			// 'subscriptions',
+			// 'subscription_cancellation',
+			// 'subscription_suspension',
+			// 'subscription_reactivation',
+			// 'subscription_amount_changes',
+			// 'subscription_date_changes',
+			// 'multiple_subscriptions'
+		);
+
+
 		// $this->enable_for_methods = $this->get_option( 'enable_for_methods', array() );
 		// $this->enable_for_virtual = $this->get_option( 'enable_for_virtual', 'yes' ) === 'yes';
 
@@ -458,7 +480,6 @@ class WC_Gateway_Lokipays extends WC_Payment_Gateway
 
 	private function lokipays_payment_processing($order)
 	{
-
 		$order_id = $order->get_ID();
 
 		lokipays_log("\n\nProcessing Order: " . $order_id);

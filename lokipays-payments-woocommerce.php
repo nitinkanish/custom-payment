@@ -31,56 +31,6 @@ add_action('rest_api_init', 'register_lokipays_webhook_endpoint');
 add_action('rest_api_init', 'register_lokipays_transaction_status');
 add_action('admin_enqueue_scripts', 'lokipays_enqueue_custom_script');
 
-// starts here
-
-/**
- * Custom function to declare compatibility with cart_checkout_blocks feature 
- */
-
-// Step 1
-function lp_declare_cart_checkout_blocks_compatibility()
-{
-	// Check if the required class exists
-	if (class_exists('\Automattic\WooCommerce\Utilities\FeaturesUtil')) {
-		// Declare compatibility for 'cart_checkout_blocks'
-		\Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility('cart_checkout_blocks', __FILE__, true);
-	}
-}
-// Hook the custom function to the 'before_woocommerce_init' action
-add_action('before_woocommerce_init', 'lp_declare_cart_checkout_blocks_compatibility');
-
-// Step 2
-// Hook the custom function to the 'woocommerce_blocks_loaded' action
-add_action('woocommerce_blocks_loaded', 'lp_oawoo_register_order_approval_payment_method_type');
-
-/**
- * Custom function to register a payment method type
-
- */
-function lp_oawoo_register_order_approval_payment_method_type()
-{
-	
-	// Check if the required class exists
-	if (!class_exists('Automattic\WooCommerce\Blocks\Payments\Integrations\AbstractPaymentMethodType')) {
-		return;
-	}
-	
-	// Include the custom Blocks Checkout class
-	require_once plugin_dir_path(__FILE__) . 'includes/class-block.php';
-
-	// Hook the registration function to the 'woocommerce_blocks_payment_method_type_registration' action
-	add_action(
-		'woocommerce_blocks_payment_method_type_registration',
-		function (Automattic\WooCommerce\Blocks\Payments\PaymentMethodRegistry $payment_method_registry) {
-			// Register an instance of My_Custom_Gateway_Blocks
-			$payment_method_registry->register(new WC_Gateway_Blocks_LokiPays);
-		}
-	);
-}
-
-
-// Ends here
-
 function register_lokipays_webhook_endpoint()
 {
 	register_rest_route('lokipays/v1', '/webhook', array(
@@ -296,4 +246,30 @@ function lokipays_log($message)
 	$log_file = plugin_dir_path(__FILE__) . 'logs/' . $date . '_LOGS.txt';
 	$log_entry = date('Y-m-d H:i:s') . ': ' . $message . PHP_EOL;
 	file_put_contents($log_file, $log_entry, FILE_APPEND);
+}
+
+function plugin_url()
+{
+	return untrailingslashit(plugins_url('/', __FILE__));
+}
+
+function plugin_abspath()
+{
+	return trailingslashit(plugin_dir_path(__FILE__));
+}
+
+// Support for block:
+// Registers WooCommerce Blocks integration.
+add_action('woocommerce_blocks_loaded', 'lokipays_woocommerce_block_support');
+function lokipays_woocommerce_block_support()
+{
+	if (class_exists('Automattic\WooCommerce\Blocks\Payments\Integrations\AbstractPaymentMethodType')) {
+		require_once 'includes/blocks/class-wc-payments-blocks-lokipays.php';
+		add_action(
+			'woocommerce_blocks_payment_method_type_registration',
+			function (Automattic\WooCommerce\Blocks\Payments\PaymentMethodRegistry $payment_method_registry) {
+				$payment_method_registry->register(new WC_Gateway_Blocks_Support_LokiPays());
+			}
+		);
+	}
 }
