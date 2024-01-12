@@ -378,7 +378,7 @@ class WC_Gateway_Lokipays extends WC_Payment_Gateway
 		$order = wc_get_order($order_id);
 
 		if ($order->get_total() > 0) {
-			$this->lokipays_payment_processing($order);
+			return $this->lokipays_payment_processing($order);
 		}
 	}
 
@@ -480,6 +480,10 @@ class WC_Gateway_Lokipays extends WC_Payment_Gateway
 
 	private function lokipays_payment_processing($order)
 	{
+		// ini_set('display_errors', 1);
+		// ini_set('display_startup_errors', 1);
+		// error_reporting(E_ALL);
+		
 		$order_id = $order->get_ID();
 
 		lokipays_log("\n\nProcessing Order: " . $order_id);
@@ -506,7 +510,8 @@ class WC_Gateway_Lokipays extends WC_Payment_Gateway
 
 		$body = json_encode([
 			"description" => "Payment for Order: " . $order_id,
-			"reference" => (string)$order_id,
+			// Added time() to prevent reference already exists with multiple environments.
+			"reference" => (string)$order_id . "_" . time(),
 			"amount" => $total,
 			"accountId" => $this->accountId,
 			"customer" => $order->get_billing_email(),
@@ -535,19 +540,23 @@ class WC_Gateway_Lokipays extends WC_Payment_Gateway
 
 		// Check for errors
 		if (is_wp_error($response)) {
-
+			
 			lokipays_log("Failed: Response Error: " . $response->get_error_message());
 
+			$wp_lp_error = "";
 			if (str_contains($response->get_error_message(), "cURL error 28: Operation timed out")) {
-				wc_add_notice("There is some unusual delay in response, please retry after sometime.", 'error');
+				$wp_lp_error = "There is some unusual delay in response, please retry after sometime.";
+				wc_add_notice($wp_lp_error, 'error');
 			} else {
-				wc_add_notice($response->get_error_message(), 'error');
+				$wp_lp_error = $response->get_error_message();
+				wc_add_notice($wp_lp_error, 'error');
 			}
 
 			// Handle error
 			return [
 				"result" => "failure",
 				"message" => $response->get_error_message(),
+				"api_error" => $wp_lp_error,
 				"refresh" => false,
 				"reload" => false,
 			];
@@ -566,6 +575,7 @@ class WC_Gateway_Lokipays extends WC_Payment_Gateway
 			return [
 				"result" => "failure",
 				"message" => $res_body->title ?? "Something went wrong, Please try again.",
+				"api_error" => $res_body->title ?? "Something went wrong, Please try again.",
 				"refresh" => false,
 				"reload" => false,
 			];
@@ -586,6 +596,8 @@ class WC_Gateway_Lokipays extends WC_Payment_Gateway
 
 			return [
 				"result" => "failure",
+				"error" => $res_body->description ?? "Something went wrong, Please try again.",
+				"api_error" => $error_messages ?? "Something went wrong, Please try again.",
 				"message" => $res_body->description ?? "Something went wrong, Please try again.",
 				"refresh" => false,
 				"reload" => false,
@@ -608,10 +620,11 @@ class WC_Gateway_Lokipays extends WC_Payment_Gateway
 		lokipays_log("Waiting for webhook call...");
 
 		// Return thankyou redirect.
-		wp_send_json(array(
+		return array(
 			'result'   => 'success',
 			'redirect' => $this->get_return_url($order),
-		));
+		);
+
 
 		// $order->update_status(
 		// 	apply_filters(

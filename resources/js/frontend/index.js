@@ -7,8 +7,8 @@ import { getSetting } from '@woocommerce/settings';
 const settings = getSetting('lokipays_data', {});
 console.log("setting", settings);
 const defaultLabel = __(
-	'Dummy Payments',
-	'woo-gutenberg-products-block'
+	'Lokipays Payments',
+	'wc-lokipays-payment'
 );
 
 const label = decodeEntities(settings.title) || defaultLabel;
@@ -17,11 +17,26 @@ const label = decodeEntities(settings.title) || defaultLabel;
  */
 const Content = (props) => {
 	const { eventRegistration, emitResponse } = props;
-	const { onPaymentProcessing } = eventRegistration;
-
-
+	const { onPaymentSetup, onCheckoutFail } = eventRegistration;
+	console.log(eventRegistration);
 	React.useEffect(() => {
-		const unsubscribe = onPaymentProcessing(async () => {
+		const errorProcessing = onCheckoutFail(async(data) => {
+			let error = "";
+			
+			try {
+				error = data.processingResponse.paymentDetails.api_error;
+				// Wait for error notice to be in DOM
+				// TODO: find a way to set error via API.
+				setTimeout(() => {
+					document.querySelector(".wc-block-components-notice-banner__content div").innerHTML = error
+				}, 500);
+			} catch (e) {
+				// Default error message will display.
+			}
+			
+		});
+
+		const unsubscribe = onPaymentSetup(async () => {
 			// Here we can do any processing we need, and then emit a response.
 			// For example, we might validate a custom field, or perform an AJAX request, and then emit a response indicating it is valid or not.
 			let customDataIsValid = true;
@@ -59,11 +74,12 @@ const Content = (props) => {
 		// Unsubscribes when this component is unmounted.
 		return () => {
 			unsubscribe();
+			errorProcessing();
 		};
 	}, [
 		emitResponse.responseTypes.ERROR,
 		emitResponse.responseTypes.SUCCESS,
-		onPaymentProcessing,
+		onPaymentSetup,
 	]);
 
 	return (
